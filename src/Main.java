@@ -1,8 +1,20 @@
 import java.io.*;
 import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 
 public class Main {
+    private static int yandexBotRequests = 0;
+    private static int googleBotRequests = 0;
+    private static int totalCount = 0;
+
+
     public static void main(String[] args) {
+
         int fileCount = 0;
         int totalCount = 0;
         int totalLength = 0;
@@ -33,10 +45,10 @@ public class Main {
                         if (length > 1024) {
                             throw new RuntimeException("Превышена максимальная длина строки (1024 символа)");
                         }
+                        parseLogLine(line);
                         totalLength += length;
-                        maxLength = Math.max(maxLength, length);
-                        minLength = Math.min(minLength, length);
                         count++;
+
                     }
                     reader.close();
                     totalCount += count;
@@ -60,8 +72,50 @@ public class Main {
             }
         }
 
-        System.out.println("Общее количество строк в файлах: " + totalCount);
-        System.out.println("Длина самой длинной строки в файлах: " + maxLength);
-        System.out.println("Длина самой короткой строки в файлах: " + minLength);
+
+        double totalPercentage = (double) (yandexBotRequests + googleBotRequests) / totalCount * 100;
+        double yandexBotPercentage = (double) yandexBotRequests / totalCount * 100;
+        double googleBotPercentage = (double) googleBotRequests / totalCount * 100;
+
+        System.out.println("Доля запросов от YandexBot: " + yandexBotPercentage + "%");
+        System.out.println("Доля запросов от Googlebot: " + googleBotPercentage + "%");
+        System.out.println("Общая доля запросов от YandexBot и Googlebot: " + totalPercentage + "%");
+        }
+
+
+        private static void parseLogLine(String line) {
+            String regex = "^(\\S+) (\\S+) (\\S+) \\[([^\\]]+)\\] \"(\\S+) (\\S+) (\\S+)\" (\\d+) (\\d+) \"([^\"]*)\" \"([^\"]*)\"$";
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(line);
+            if (matcher.find()) {
+
+                String ipAddress = matcher.group(1);
+                String dash1 = matcher.group(2);
+                String dash2 = matcher.group(3);
+                String timestamp = matcher.group(4);
+                String method = matcher.group(5);
+                String path = matcher.group(6);
+                String protocol = matcher.group(7);
+                int responseCode = Integer.parseInt(matcher.group(8));
+                int bytesSent = Integer.parseInt(matcher.group(9));
+                String referer = matcher.group(10);
+                String userAgent = matcher.group(11);
+
+
+                String[] parts = userAgent.split("\\(");
+                if (parts.length >= 2) {
+                    String[] fragments = parts[1].split(";");
+                    if (fragments.length >= 2) {
+                        String fragment = fragments[1].trim();
+                        String botName = fragment.split("/")[0];
+                        if (botName.equals("Googlebot")) {
+                            googleBotRequests++;
+                        } else if (botName.equals("YandexBot")) {
+                            yandexBotRequests++;
+                        }
+                    }
+                }
+                totalCount++;
+            }
+        }
     }
-}
